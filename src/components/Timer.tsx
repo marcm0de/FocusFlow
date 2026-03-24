@@ -180,6 +180,13 @@ export default function Timer() {
         </motion.button>
       </div>
 
+      {/* Keyboard shortcut hint */}
+      <div className="flex items-center justify-center gap-3 text-[10px]" style={{ color: 'var(--muted)', opacity: 0.4 }}>
+        <span><kbd className="px-1 py-0.5 rounded border" style={{ borderColor: 'var(--border)' }}>Space</kbd> play/pause</span>
+        <span><kbd className="px-1 py-0.5 rounded border" style={{ borderColor: 'var(--border)' }}>S</kbd> skip</span>
+        <span><kbd className="px-1 py-0.5 rounded border" style={{ borderColor: 'var(--border)' }}>R</kbd> reset</span>
+      </div>
+
       {/* Daily progress */}
       <div className="w-full max-w-xs">
         <div className="flex justify-between text-xs mb-1" style={{ color: 'var(--muted)' }}>

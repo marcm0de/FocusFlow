@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { startOfDay, isSameDay, differenceInCalendarDays } from 'date-fns';
+import { startOfDay, isSameDay, differenceInCalendarDays, subDays, subWeeks, startOfWeek, endOfWeek, isWithinInterval, format, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 
 // Types
 export interface Task {
@@ -107,6 +107,10 @@ interface AppState {
     avgSessionMinutes: number;
     streak: number;
   };
+
+  getFocusScore: () => number;
+  getWeeklyData: (weeksAgo?: number) => { label: string; minutes: number; isToday: boolean }[];
+  getMonthlyData: (monthsAgo?: number) => { label: string; minutes: number }[];
 }
 
 const DEFAULT_SETTINGS: TimerSettings = {
@@ -382,6 +386,72 @@ export const useStore = create<AppState>()(
           avgSessionMinutes: completedSessions.length > 0 ? Math.round(totalMinutes / completedSessions.length) : 0,
           streak: state.getStreak(),
         };
+      },
+
+      getFocusScore: () => {
+        const state = get();
+        const streak = state.getStreak();
+        const todayMinutes = state.getTodayFocusMinutes();
+        const goalProgress = state.getDailyGoalProgress();
+        const stats = state.getStats();
+
+        // Score components (max 100):
+        // - Daily goal progress: 0-40 points
+        // - Streak bonus: 0-30 points (caps at 30 days)
+        // - Consistency bonus: 0-30 points (based on completed vs total sessions)
+        const goalScore = Math.min(goalProgress, 100) * 0.4;
+        const streakScore = Math.min(streak, 30) * (30 / 30);
+        const completionRate = stats.totalSessions > 0
+          ? (stats.completedSessions / stats.totalSessions) * 30
+          : 0;
+
+        return Math.round(goalScore + streakScore + completionRate);
+      },
+
+      getWeeklyData: (weeksAgo = 0) => {
+        const state = get();
+        const today = new Date();
+        const targetWeekStart = startOfWeek(subWeeks(today, weeksAgo));
+        
+        return Array.from({ length: 7 }, (_, i) => {
+          const date = subDays(targetWeekStart, -i);
+          const dayMinutes = state.sessions
+            .filter(s => s.type === 'work' && s.completed && isSameDay(new Date(s.startedAt), date))
+            .reduce((acc, s) => acc + s.actualDuration / 60, 0);
+          return {
+            label: format(date, 'EEE'),
+            minutes: Math.round(dayMinutes),
+            isToday: isSameDay(date, today),
+          };
+        });
+      },
+
+      getMonthlyData: (monthsAgo = 0) => {
+        const state = get();
+        const targetMonth = subMonths(new Date(), monthsAgo);
+        const monthStart = startOfMonth(targetMonth);
+        const monthEnd = endOfMonth(targetMonth);
+        
+        // Group by week within the month
+        const weeks: { label: string; minutes: number }[] = [];
+        let weekStart = monthStart;
+        let weekNum = 1;
+        while (weekStart <= monthEnd) {
+          const weekEnd = new Date(Math.min(subDays(weekStart, -6).getTime(), monthEnd.getTime()));
+          const weekMinutes = state.sessions
+            .filter(s => {
+              const d = new Date(s.startedAt);
+              return s.type === 'work' && s.completed && d >= weekStart && d <= weekEnd;
+            })
+            .reduce((acc, s) => acc + s.actualDuration / 60, 0);
+          weeks.push({
+            label: `W${weekNum}`,
+            minutes: Math.round(weekMinutes),
+          });
+          weekStart = subDays(weekStart, -7);
+          weekNum++;
+        }
+        return weeks;
       },
     }),
     {

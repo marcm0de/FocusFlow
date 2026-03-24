@@ -8,6 +8,7 @@ import TaskList from '@/components/TaskList';
 import SoundMixer from '@/components/SoundMixer';
 import Stats from '@/components/Stats';
 import Settings from '@/components/Settings';
+import KeyboardShortcuts from '@/components/KeyboardShortcuts';
 import { useStore } from '@/store/useStore';
 
 const pageVariants = {
@@ -62,6 +63,8 @@ export default function Home() {
         <AnimatePresence>
           {showSettings && <Settings />}
         </AnimatePresence>
+
+        <KeyboardShortcuts />
       </div>
     </main>
   );
