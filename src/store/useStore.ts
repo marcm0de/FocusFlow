@@ -128,6 +128,10 @@ const DEFAULT_SOUNDS: SoundConfig[] = [
   { id: 'coffee', name: 'Coffee Shop', icon: '☕', volume: 0.5, playing: false },
   { id: 'fire', name: 'Fireplace', icon: '🔥', volume: 0.5, playing: false },
   { id: 'ocean', name: 'Ocean', icon: '🌊', volume: 0.5, playing: false },
+  { id: 'forest', name: 'Forest Birds', icon: '🌲', volume: 0.4, playing: false },
+  { id: 'thunder', name: 'Thunderstorm', icon: '⛈️', volume: 0.3, playing: false },
+  { id: 'wind', name: 'Gentle Wind', icon: '🍃', volume: 0.4, playing: false },
+  { id: 'lofi', name: 'Lo-Fi Beats', icon: '🎵', volume: 0.5, playing: false },
 ];
 
 function generateId(): string {

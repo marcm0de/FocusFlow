@@ -89,8 +89,32 @@ export default function Timer() {
 
       {/* Timer circle */}
       <div className="relative flex items-center justify-center" style={{ width: 320, height: 320 }}>
+        {/* Glow effect when running */}
+        {timerState === 'running' && (
+          <motion.div
+            className="absolute rounded-full"
+            style={{
+              width: 300,
+              height: 300,
+              background: sessionType === 'work'
+                ? 'radial-gradient(circle, var(--accent) 0%, transparent 70%)'
+                : 'radial-gradient(circle, var(--success) 0%, transparent 70%)',
+              opacity: 0.08,
+            }}
+            animate={{ scale: [1, 1.05, 1] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
         <svg width="320" height="320" className="absolute -rotate-90">
           {/* Background circle */}
+          <circle
+            cx="160" cy="160" r="140"
+            fill="none"
+            stroke="var(--border)"
+            strokeWidth="6"
+            opacity={0.5}
+          />
+          {/* Secondary progress track */}
           <circle
             cx="160" cy="160" r="140"
             fill="none"
@@ -101,7 +125,7 @@ export default function Timer() {
           <motion.circle
             cx="160" cy="160" r="140"
             fill="none"
-            stroke="var(--accent)"
+            stroke={sessionType === 'work' ? 'var(--accent)' : 'var(--success)'}
             strokeWidth="6"
             strokeLinecap="round"
             strokeDasharray={circumference}
