@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, RotateCcw, SkipForward } from 'lucide-react';
 import { useStore, SessionType } from '@/store/useStore';
@@ -24,6 +24,22 @@ function getDurationForType(type: SessionType, settings: { workDuration: number;
     case 'work': return settings.workDuration * 60;
     case 'shortBreak': return settings.shortBreakDuration * 60;
     case 'longBreak': return settings.longBreakDuration * 60;
+  }
+}
+
+function getSessionColor(type: SessionType): string {
+  switch (type) {
+    case 'work': return 'var(--accent)';
+    case 'shortBreak': return 'var(--break-short)';
+    case 'longBreak': return 'var(--break-long)';
+  }
+}
+
+function getSessionGlow(type: SessionType): string {
+  switch (type) {
+    case 'work': return 'var(--work-glow)';
+    case 'shortBreak': return 'var(--break-short-glow)';
+    case 'longBreak': return 'var(--break-long-glow)';
   }
 }
 
@@ -60,6 +76,9 @@ export default function Timer() {
   const todayMinutes = getTodayFocusMinutes();
   const goalProgress = getDailyGoalProgress();
 
+  const activeColor = getSessionColor(sessionType);
+  const activeGlow = getSessionGlow(sessionType);
+
   const sessionTypes: { type: SessionType; label: string }[] = [
     { type: 'work', label: 'Focus' },
     { type: 'shortBreak', label: 'Short Break' },
@@ -74,9 +93,9 @@ export default function Timer() {
           <button
             key={type}
             onClick={() => timerState === 'idle' && setSessionType(type)}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300"
             style={{
-              background: sessionType === type ? 'var(--accent)' : 'transparent',
+              background: sessionType === type ? getSessionColor(type) : 'transparent',
               color: sessionType === type ? '#0f172a' : 'var(--muted)',
               cursor: timerState === 'idle' ? 'pointer' : 'default',
               opacity: timerState !== 'idle' && sessionType !== type ? 0.5 : 1,
@@ -89,48 +108,61 @@ export default function Timer() {
 
       {/* Timer circle */}
       <div className="relative flex items-center justify-center" style={{ width: 320, height: 320 }}>
-        {/* Glow effect when running */}
-        {timerState === 'running' && (
-          <motion.div
-            className="absolute rounded-full"
-            style={{
-              width: 300,
-              height: 300,
-              background: sessionType === 'work'
-                ? 'radial-gradient(circle, var(--accent) 0%, transparent 70%)'
-                : 'radial-gradient(circle, var(--success) 0%, transparent 70%)',
-              opacity: 0.08,
-            }}
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          />
-        )}
+        {/* Ambient glow — always visible, intensifies when running */}
+        <motion.div
+          className="absolute rounded-full"
+          style={{
+            width: 300,
+            height: 300,
+            background: `radial-gradient(circle, ${activeColor} 0%, transparent 70%)`,
+          }}
+          animate={{
+            opacity: timerState === 'running' ? [0.06, 0.12, 0.06] : 0.04,
+            scale: timerState === 'running' ? [1, 1.06, 1] : 1,
+          }}
+          transition={{
+            duration: 3,
+            repeat: timerState === 'running' ? Infinity : 0,
+            ease: 'easeInOut',
+          }}
+        />
         <svg width="320" height="320" className="absolute -rotate-90">
+          <defs>
+            {/* Glow filter for progress ring */}
+            <filter id="progress-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+          </defs>
           {/* Background circle */}
           <circle
             cx="160" cy="160" r="140"
             fill="none"
             stroke="var(--border)"
-            strokeWidth="6"
-            opacity={0.5}
+            strokeWidth="5"
+            opacity={0.3}
           />
           {/* Secondary progress track */}
           <circle
             cx="160" cy="160" r="140"
             fill="none"
             stroke="var(--border)"
-            strokeWidth="6"
+            strokeWidth="5"
+            opacity={0.15}
           />
-          {/* Progress circle */}
-          <motion.circle
+          {/* Progress circle — smooth CSS transition instead of framer-motion re-renders */}
+          <circle
             cx="160" cy="160" r="140"
             fill="none"
-            stroke={sessionType === 'work' ? 'var(--accent)' : 'var(--success)'}
-            strokeWidth="6"
+            stroke={activeColor}
+            strokeWidth="5"
             strokeLinecap="round"
             strokeDasharray={circumference}
-            animate={{ strokeDashoffset }}
-            transition={{ duration: 0.5, ease: 'linear' }}
+            strokeDashoffset={strokeDashoffset}
+            filter="url(#progress-glow)"
+            style={{
+              transition: 'stroke-dashoffset 1s linear, stroke 0.6s ease',
+            }}
           />
         </svg>
         
@@ -142,22 +174,23 @@ export default function Timer() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="text-sm font-medium mb-2"
-              style={{ color: 'var(--accent)' }}
+              transition={{ duration: 0.3 }}
+              className="text-sm font-medium mb-2 uppercase tracking-widest"
+              style={{ color: activeColor, fontSize: '0.7rem', letterSpacing: '0.15em' }}
             >
               {getSessionLabel(sessionType)}
             </motion.span>
           </AnimatePresence>
           
-          <motion.span
+          <span
             className="text-6xl font-bold tabular-nums tracking-tight"
-            style={{ color: 'var(--foreground)' }}
-            key={timeRemaining}
-            animate={{ scale: timerState === 'running' ? [1, 1.01, 1] : 1 }}
-            transition={{ duration: 1, repeat: timerState === 'running' ? Infinity : 0 }}
+            style={{
+              color: 'var(--foreground)',
+              transition: 'color 0.3s ease',
+            }}
           >
             {formatTime(timeRemaining)}
-          </motion.span>
+          </span>
           
           <span className="text-xs mt-2" style={{ color: 'var(--muted)' }}>
             Session {completedWorkSessions + 1} of {settings.longBreakInterval}
@@ -168,10 +201,10 @@ export default function Timer() {
       {/* Controls */}
       <div className="flex items-center gap-4">
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
           onClick={resetTimer}
-          className="p-3 rounded-full"
+          className="p-3 rounded-full transition-colors duration-200"
           style={{ background: 'var(--card)', color: 'var(--muted)' }}
           title="Reset"
         >
@@ -179,24 +212,28 @@ export default function Timer() {
         </motion.button>
 
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.94 }}
           onClick={() => {
             if (timerState === 'idle') startTimer();
             else if (timerState === 'running') pauseTimer();
             else resumeTimer();
           }}
-          className="p-5 rounded-full"
-          style={{ background: 'var(--accent)', color: '#0f172a' }}
+          className="p-5 rounded-full shadow-lg transition-colors duration-300"
+          style={{
+            background: activeColor,
+            color: '#0f172a',
+            boxShadow: `0 0 24px ${activeGlow}`,
+          }}
         >
           {timerState === 'running' ? <Pause size={28} /> : <Play size={28} className="ml-1" />}
         </motion.button>
 
         <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
+          whileHover={{ scale: 1.08 }}
+          whileTap={{ scale: 0.92 }}
           onClick={skipSession}
-          className="p-3 rounded-full"
+          className="p-3 rounded-full transition-colors duration-200"
           style={{ background: 'var(--card)', color: 'var(--muted)' }}
           title="Skip"
         >
@@ -217,12 +254,12 @@ export default function Timer() {
           <span>Today: {Math.round(todayMinutes)} min</span>
           <span>Goal: {settings.dailyGoalMinutes} min</span>
         </div>
-        <div className="w-full h-2 rounded-full" style={{ background: 'var(--border)' }}>
+        <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
           <motion.div
             className="h-full rounded-full"
-            style={{ background: goalProgress >= 100 ? 'var(--success)' : 'var(--accent)' }}
-            animate={{ width: `${goalProgress}%` }}
-            transition={{ duration: 0.5 }}
+            style={{ background: goalProgress >= 100 ? 'var(--success)' : activeColor }}
+            animate={{ width: `${Math.min(goalProgress, 100)}%` }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
           />
         </div>
       </div>
